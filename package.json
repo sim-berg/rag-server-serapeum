@@ -1,0 +1,29 @@
+{
+  "name": "rag-server",
+  "version": "1.0.0",
+  "description": "Custom RAG Server REST API",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "@qdrant/js-client-rest": "^1.15.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^4.18.2",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.1",
+    "ollama": "^0.5.17",
+    "pino": "^9.9.4"
+  },
+  "keywords": [
+    "rag",
+    "api",
+    "express",
+    "nodejs"
+  ],
+  "author": "Serapeum Team",
+  "license": "MIT"
+}

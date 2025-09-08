@@ -1,0 +1,4 @@
+.nix
+node_modules
+nixos
+.env
