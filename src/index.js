@@ -21,8 +21,9 @@ app.use(morgan('combined'));
 // Import services
 const ollamaService = require('./services/ollamaService');
 const qdrantService = require('./services/qdrantService');
+const neo4jService = require('./services/neo4jService');
 
-// Initialize Qdrant
+// Initialize services
 const initializeServices = async () => {
   // Skip initialization in test mode
   if (process.env.TEST_MODE === 'true') {
@@ -32,6 +33,7 @@ const initializeServices = async () => {
   
   try {
     await qdrantService.initializeCollection();
+    await neo4jService.initializeConnection();
     logger.info('Services initialized successfully');
   } catch (error) {
     logger.error({ error }, 'Failed to initialize services');
@@ -107,6 +109,14 @@ app.post('/api/v1/documents', async (req, res) => {
     // Store the document and its embeddings in Qdrant
     await qdrantService.storeDocument(documentId, embeddings, metadata, content);
     
+    // Create a node in Neo4j for the document
+    await neo4jService.createNode('Document', {
+      id: documentId,
+      content: content,
+      ...metadata,
+      createdAt: new Date().toISOString()
+    });
+    
     const document = {
       id: documentId,
       content: content,
@@ -154,7 +164,25 @@ app.get('/api/v1/documents/:id', async (req, res) => {
   }
 });
 
-
+// Neo4j API endpoints
+app.get('/api/v1/graph/:label', async (req, res) => {
+  const { label } = req.params;
+  const { limit = 10 } = req.query;
+  
+  try {
+    logger.info({ label }, 'Retrieving nodes from graph');
+    
+    const query = `MATCH (n:${label}) RETURN n LIMIT $limit`;
+    const params = { limit: parseInt(limit) };
+    const nodes = await neo4jService.executeQuery(query, params);
+    
+    logger.info({ label, count: nodes.length }, 'Nodes retrieved successfully');
+    res.status(200).json(nodes);
+  } catch (error) {
+    logger.error({ error, label }, 'Error retrieving nodes from graph');
+    res.status(500).json({ error: `Error retrieving nodes: ${error.message}` });
+  }
+});
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -173,6 +201,19 @@ initializeServices().then(() => {
   app.listen(PORT, () => {
     logger.info(`RAG Server listening on port ${PORT}`);
   });
+});
+
+// Close Neo4j connection on process termination
+process.on('SIGINT', async () => {
+  logger.info('Shutting down server');
+  await neo4jService.closeConnection();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  logger.info('Shutting down server');
+  await neo4jService.closeConnection();
+  process.exit(0);
 });
 
 module.exports = app;

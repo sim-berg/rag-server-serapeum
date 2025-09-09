@@ -1,11 +1,12 @@
 # RAG Server
 
-A custom REST API server for Retrieval-Augmented Generation (RAG) applications built with Express.js, Ollama, and Qdrant.
+A custom REST API server for Retrieval-Augmented Generation (RAG) applications built with Express.js, Ollama, Qdrant, Neo4j, and Cognee.
 
 ## Features
 
 - Query endpoint for RAG operations using Ollama and Qdrant
 - Document management API with storage in Qdrant
+- Graph database integration with Neo4j
 - Health check endpoint
 - Prompt generation endpoints
 - JSON request parsing
@@ -15,17 +16,19 @@ A custom REST API server for Retrieval-Augmented Generation (RAG) applications b
 
 ## Architecture
 
-The RAG server integrates three key components:
+The RAG server integrates four key components:
 
 1. **Ollama**: For generating embeddings and LLM responses
 2. **Qdrant**: For vector storage and similarity search
-3. **Express.js**: For HTTP API handling
+3. **Neo4j**: For graph database storage and relationship management
+4. **Express.js**: For HTTP API handling
 
 ## Prerequisites
 
 - Node.js v18 or higher
 - Ollama service running locally
 - Qdrant service running locally (or Qdrant cloud account)
+- Neo4j service running locally
 
 ## Installation
 
@@ -50,6 +53,11 @@ OLLAMA_MODEL=llama3.1
 QDRANT_HOST=http://127.0.0.1:6333
 QDRANT_COLLECTION_NAME=rag-server-collection
 QDRANT_API_KEY=your_qdrant_api_key_here  # Optional, only needed for cloud Qdrant
+
+# Neo4j Configuration
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USERNAME=neo4j
+NEO4J_PASSWORD=your_neo4j_password
 ```
 
 ## Usage
@@ -95,21 +103,14 @@ Request body:
 ### Retrieve Document
 `GET /api/v1/documents/:id` - Retrieve a document by ID
 
-### Get Available Prompts
-`GET /api/v1/prompts` - Get all available prompt types
+### Retrieve Graph Nodes
+`GET /api/v1/graph/:label` - Retrieve nodes from the graph database by label
 
-### Generate a Prompt
-`POST /api/v1/prompt` - Generate a prompt based on predefined templates
+Request parameters:
+- `label` - The node label to retrieve
+- `limit` (optional) - Maximum number of nodes to return (default: 10)
 
-Request body:
-```json
-{
-  "promptType": "technical",
-  "query": "Explain how RAG works"
-}
-```
-
-## Example Queries
+## Example Usage
 
 ### Health Check
 ```bash
@@ -135,11 +136,14 @@ curl -X POST http://localhost:3000/api/v1/documents \
 curl http://localhost:3000/api/v1/documents/12345
 ```
 
+### Retrieve Graph Nodes
+```bash
+curl http://localhost:3000/api/v1/graph/Document
+```
 
 ## Testing
 
 Run the test suite with:
-
 ```bash
 npm test
 ```
@@ -149,14 +153,14 @@ npm test
 See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions for NixOS.
 
 ## Directory Structure
-
 ```
 rag-server/
 ├── src/
 │   ├── index.js          # Main server implementation
 │   └── services/
 │       ├── ollamaService.js    # Ollama client wrapper
-│       └── qdrantService.js  # Qdrant client wrapper
+│       ├── qdrantService.js    # Qdrant client wrapper
+│       └── neo4jService.js     # Neo4j client wrapper
 ├── nixos/
 │   └── rag-server.nix    # NixOS service configuration
 ├── test.js               # Test suite

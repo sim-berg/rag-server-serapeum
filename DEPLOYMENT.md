@@ -27,18 +27,31 @@ For full functionality, you'll need to ensure these services are available:
    - No API key required for local deployment
    - Service creates collections automatically
 
+3. **Neo4j Service**:
+   - Must be running locally or accessible via network
+   - Default endpoint: `bolt://localhost:7687`
+   - Default username: `neo4j`
+   - Password should be configured securely
+
 ### Installation Steps
 
 1. Copy the rag-server directory to your NixOS machine
 2. Add the nixos/rag-server.nix module to your NixOS configuration
-3. Set the QDRANT_HOST and QDRANT_API_KEY (if needed) in your NixOS configuration:
+3. Set the environment variables in your NixOS configuration:
    ```
    environment.systemPackages = [
      (pkgs.writeTextFile {
-       name = "qdrant-config";
+       name = "rag-server-config";
        text = ''
+         NODE_ENV=production
+         PORT=3000
+         OLLAMA_HOST=http://127.0.0.1:11434
+         OLLAMA_MODEL=llama3.1
          QDRANT_HOST=http://127.0.0.1:6333
-         QDRANT_API_KEY=your-api-key-here  # Optional for cloud Qdrant
+         QDRANT_COLLECTION_NAME=rag-server-collection
+         NEO4J_URI=bolt://localhost:7687
+         NEO4J_USERNAME=neo4j
+         NEO4J_PASSWORD=your_secure_password
        '';
        destination = "/var/lib/rag-server/.env";
      })
@@ -58,6 +71,9 @@ The following environment variables can be configured in the NixOS service defin
 - `QDRANT_HOST` - Qdrant service endpoint
 - `QDRANT_COLLECTION_NAME` - Name of the Qdrant collection to use
 - `QDRANT_API_KEY` - Qdrant API key (optional, for cloud Qdrant)
+- `NEO4J_URI` - Neo4j service endpoint
+- `NEO4J_USERNAME` - Neo4j username
+- `NEO4J_PASSWORD` - Neo4j password
 
 ### Directory Permissions
 
@@ -69,3 +85,4 @@ The service runs as the `rag` user and expects to use `/var/lib/rag-server` as i
 - Check logs: `journalctl -u rag-server`
 - Ensure Ollama is running and accessible
 - Verify Qdrant service is running and accessible
+- Verify Neo4j service is running and accessible
