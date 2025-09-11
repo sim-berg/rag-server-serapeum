@@ -22,6 +22,7 @@ app.use(morgan('combined'));
 const ollamaService = require('./services/ollamaService');
 const qdrantService = require('./services/qdrantService');
 const neo4jService = require('./services/neo4jService');
+const cogneeService = require('./services/cogneeService');
 
 // Initialize services
 const initializeServices = async () => {
@@ -117,6 +118,9 @@ app.post('/api/v1/documents', async (req, res) => {
       createdAt: new Date().toISOString()
     });
     
+    // Add document to Cognee for knowledge graph processing
+    await cogneeService.addText(content);
+    
     const document = {
       id: documentId,
       content: content,
@@ -181,6 +185,49 @@ app.get('/api/v1/graph/:label', async (req, res) => {
   } catch (error) {
     logger.error({ error, label }, 'Error retrieving nodes from graph');
     res.status(500).json({ error: `Error retrieving nodes: ${error.message}` });
+  }
+});
+
+// Cognee API endpoints
+app.post('/api/v1/cognee/add', async (req, res) => {
+  const { content } = req.body;
+  
+  if (!content) {
+    logger.warn('Content missing in Cognee add request');
+    return res.status(400).json({ error: 'Content is required' });
+  }
+  
+  try {
+    logger.info('Adding content to Cognee');
+    
+    const result = await cogneeService.addText(content);
+    
+    logger.info('Content added to Cognee successfully');
+    res.status(200).json(result);
+  } catch (error) {
+    logger.error({ error }, 'Error adding content to Cognee');
+    res.status(500).json({ error: `Error adding content to Cognee: ${error.message}` });
+  }
+});
+
+app.post('/api/v1/cognee/search', async (req, res) => {
+  const { query, type } = req.body;
+  
+  if (!query) {
+    logger.warn('Query missing in Cognee search request');
+    return res.status(400).json({ error: 'Query is required' });
+  }
+  
+  try {
+    logger.info('Performing search with Cognee');
+    
+    const results = await cogneeService.search(query, type);
+    
+    logger.info('Search completed successfully');
+    res.status(200).json(results);
+  } catch (error) {
+    logger.error({ error }, 'Error performing search with Cognee');
+    res.status(500).json({ error: `Error performing search with Cognee: ${error.message}` });
   }
 });
 

@@ -6,9 +6,11 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "mcp": "node src/mcp.js",
     "test": "node test.js"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.5",
     "@qdrant/js-client-rest": "^1.15.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",

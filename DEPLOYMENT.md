@@ -33,6 +33,11 @@ For full functionality, you'll need to ensure these services are available:
    - Default username: `neo4j`
    - Password should be configured securely
 
+4. **Python**:
+   - Required for Cognee integration
+   - Version 3.8 or higher
+   - Available through NixOS package management
+
 ### Installation Steps
 
 1. Copy the rag-server directory to your NixOS machine
@@ -52,6 +57,7 @@ For full functionality, you'll need to ensure these services are available:
          NEO4J_URI=bolt://localhost:7687
          NEO4J_USERNAME=neo4j
          NEO4J_PASSWORD=your_secure_password
+         PYTHON_PATH=/path/to/python
        '';
        destination = "/var/lib/rag-server/.env";
      })
@@ -74,6 +80,7 @@ The following environment variables can be configured in the NixOS service defin
 - `NEO4J_URI` - Neo4j service endpoint
 - `NEO4J_USERNAME` - Neo4j username
 - `NEO4J_PASSWORD` - Neo4j password
+- `PYTHON_PATH` - Path to Python executable (required for Cognee)
 
 ### Directory Permissions
 
@@ -86,3 +93,4 @@ The service runs as the `rag` user and expects to use `/var/lib/rag-server` as i
 - Ensure Ollama is running and accessible
 - Verify Qdrant service is running and accessible
 - Verify Neo4j service is running and accessible
+- Ensure Python is installed and accessible
