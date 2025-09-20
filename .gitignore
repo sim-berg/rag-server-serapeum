@@ -4,3 +4,4 @@ nixos
 .env
 pdf-parse-input/
 .db
+doclibrary/
