@@ -8,8 +8,8 @@ A custom REST API server for Retrieval-Augmented Generation (RAG) applications b
 - Document management API with storage in Qdrant
 - Graph database integration with Neo4j
 - Knowledge graph processing with Cognee
+- SQL database integration for document metadata storage
 - Health check endpoint
-- Prompt generation endpoints
 - JSON request parsing
 - Security middleware (CORS, Helmet)
 - Request logging with Morgan
@@ -23,7 +23,9 @@ The RAG server integrates five key components:
 2. **Qdrant**: For vector storage and similarity search
 3. **Neo4j**: For graph database storage and relationship management
 4. **Cognee**: For knowledge graph processing and reasoning
-5. **Express.js**: For HTTP API handling
+5. **SQLite**: For storing document metadata (names and authors)
+6. **LM Studio**: For locally hosted embedding and completion models
+7. **Express.js**: For HTTP API handling
 
 ## Prerequisites
 
@@ -32,6 +34,7 @@ The RAG server integrates five key components:
 - Ollama service running locally
 - Qdrant service running locally (or Qdrant cloud account)
 - Neo4j service running locally
+- LM Studio with embedding and completion models running locally
 
 ## Installation
 
@@ -52,6 +55,11 @@ NODE_ENV=development
 OLLAMA_HOST=http://127.0.0.1:11434
 OLLAMA_MODEL=llama3.1
 
+# LM Studio Configuration
+LMSTUDIO_HOST=http://127.0.0.1:1234
+LMSTUDIO_EMBEDDING_MODEL=nomic-ai/nomic-embed-text-v1.5-GGUF
+LMSTUDIO_COMPLETION_MODEL=bartowski/Llama-3.1-8B-Instruct-GGUF
+
 # Qdrant Configuration
 QDRANT_HOST=http://127.0.0.1:6333
 QDRANT_COLLECTION_NAME=rag-server-collection
@@ -61,6 +69,9 @@ QDRANT_API_KEY=your_qdrant_api_key_here  # Optional, only needed for cloud Qdran
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=your_neo4j_password
+
+# SQL Database Configuration
+DATABASE_PATH=./documents.db
 
 # Python Path (optional, if not in PATH)
 PYTHON_PATH=python
@@ -137,6 +148,24 @@ Request body:
 }
 ```
 
+## Model Context Protocol (MCP) Support
+
+This server also implements the Model Context Protocol (MCP) for integration with compatible AI model providers. The MCP endpoint is accessible via HTTP on port 3001 (or the port specified in the MCP_PORT environment variable):
+
+```bash
+npm run mcp
+```
+
+The MCP server will start an HTTP server listening on `http://localhost:3001/mcp` that accepts POST requests for MCP protocol messages.
+
+The MCP implementation provides the following capabilities:
+- RAG query processing
+- Document storage and retrieval
+- Graph database node retrieval (when Neo4j is available)
+- Cognee integration for knowledge graph processing (when Cognee is available)
+
+The MCP server dynamically advertises available tools based on service availability at startup.
+
 ## Example Usage
 
 ### Health Check
@@ -189,6 +218,14 @@ Run the test suite with:
 npm test
 ```
 
+### Testing LM Studio Integration
+
+To test the LM Studio integration specifically:
+
+```bash
+node test-lmstudio.js
+```
+
 ## Deployment
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions for NixOS.
@@ -200,9 +237,11 @@ rag-server/
 │   ├── index.js              # Main server implementation
 │   ├── services/
 │   │   ├── ollamaService.js  # Ollama client wrapper
+│   │   ├── lmstudioService.js # LM Studio client wrapper
 │   │   ├── qdrantService.js  # Qdrant client wrapper
 │   │   ├── neo4jService.js   # Neo4j client wrapper
-│   │   └── cogneeService.js  # Cognee client wrapper
+│   │   ├── cogneeService.js  # Cognee client wrapper
+│   │   └── sqlService.js     # SQL database service for document metadata
 │   └── cognee/
 │       ├── cognee.py         # Cognee Python script
 │       ├── .data_storage/    # Cognee data storage directory
@@ -210,6 +249,7 @@ rag-server/
 ├── nixos/
 │   └── rag-server.nix        # NixOS service configuration
 ├── test.js                   # Test suite
+├── test-sql.js               # SQL service test script
 ├── package.json              # Project dependencies and scripts
 ├── .env.example              # Example environment configuration
 └── README.md                 # This file

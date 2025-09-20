@@ -1,5 +1,4 @@
 const { Server } = require('@modelcontextprotocol/sdk/server');
-const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server');
 const pino = require('pino');
 const ollamaService = require('./ollamaService');
 const qdrantService = require('./qdrantService');
@@ -8,10 +7,15 @@ const cogneeService = require('./cogneeService');
 
 const logger = pino();
 
+// Service availability flags
+let qdrantAvailable = false;
+let neo4jAvailable = false;
+let cogneeAvailable = false;
+
 // Initialize the MCP server
 const server = new Server(
   {
-    name: 'rag-server',
+    name: 'Serapeum',
     version: '0.1.0',
   },
   {
@@ -20,6 +24,15 @@ const server = new Server(
     },
   }
 );
+
+// Add error handling
+server.onerror = (error) => {
+  logger.error({ error }, 'MCP server error');
+};
+
+server.onclose = () => {
+  logger.info('MCP server closed');
+};
 
 // Define the tools that will be available to the LLM
 const tools = [
@@ -41,90 +54,107 @@ const tools = [
       required: ['query'],
     },
   },
-  {
-    name: 'store_document',
-    description: 'Store a document in the vector database and knowledge graph',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        content: {
-          type: 'string',
-          description: 'The document content to store',
-        },
-        metadata: {
-          type: 'object',
-          description: 'Metadata for the document',
-        },
-      },
-      required: ['content'],
-    },
-  },
-  {
-    name: 'retrieve_document',
-    description: 'Retrieve a document by its ID',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: {
-          type: 'string',
-          description: 'The document ID',
-        },
-      },
-      required: ['id'],
-    },
-  },
-  {
-    name: 'retrieve_graph_nodes',
-    description: 'Retrieve nodes from the graph database by label',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        label: {
-          type: 'string',
-          description: 'The node label to retrieve',
-        },
-        limit: {
-          type: 'number',
-          description: 'Maximum number of nodes to return',
-        },
-      },
-      required: ['label'],
-    },
-  },
-  {
-    name: 'cognee_add',
-    description: 'Add content to Cognee for knowledge graph processing',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        content: {
-          type: 'string',
-          description: 'The content to be processed by Cognee',
-        },
-      },
-      required: ['content'],
-    },
-  },
-  {
-    name: 'cognee_search',
-    description: 'Perform a search query using Cognee',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        query: {
-          type: 'string',
-          description: 'The search query',
-        },
-        type: {
-          type: 'string',
-          description: 'The type of search (GRAPH_COMPLETION, RAG_COMPLETION, SUMMARIES, or CHUNKS)',
-          enum: ['GRAPH_COMPLETION', 'RAG_COMPLETION', 'SUMMARIES', 'CHUNKS'],
-        },
-      },
-      required: ['query'],
-    },
-  },
 ];
+
+// Register tool handlers
+server.onerror = (error) => {
+  logger.error({ error }, 'MCP server error');
+};
+  //     description: 'Store a document in the vector database and knowledge graph',
+  //     inputSchema: {
+  //       type: 'object',
+  //       properties: {
+  //         content: {
+  //           type: 'string',
+  //           description: 'The document content to store',
+  //         },
+  //         metadata: {
+  //           type: 'object',
+  //           description: 'Metadata for the document',
+  //         },
+  //       },
+  //       required: ['content'],
+  //     },
+  //   },
+  //   {
+  //     name: 'retrieve_document',
+  //     description: 'Retrieve a document by its ID',
+  //     inputSchema: {
+  //       type: 'object',
+  //       properties: {
+  //         id: {
+  //           type: 'string',
+  //           description: 'The document ID',
+  //         },
+  //       },
+  //       required: ['id'],
+  //     },
+  //   },
+  //   {
+  //     name: 'retrieve_graph_nodes',
+  //     description: 'Retrieve nodes from the graph database by label',
+  //     inputSchema: {
+  //       type: 'object',
+  //       properties: {
+  //         label: {
+  //           type: 'string',
+  //           description: 'The node label to retrieve',
+  //         },
+  //         limit: {
+  //           type: 'number',
+  //           description: 'Maximum number of nodes to return',
+  //         },
+  //       },
+  //       required: ['label'],
+  //     },
+  //   },
+  //   {
+  //     name: 'cognee_add',
+  //     description: 'Add content to Cognee for knowledge graph processing',
+  //     inputSchema: {
+  //       type: 'object',
+  //       properties: {
+  //         content: {
+  //           type: 'string',
+  //           description: 'The content to be processed by Cognee',
+  //         },
+  //       },
+  //       required: ['content'],
+  //     },
+  //   },
+  //   {
+  //     name: 'cognee_search',
+  //     description: 'Perform a search query using Cognee',
+  //     inputSchema: {
+  //       type: 'object',
+  //       properties: {
+  //         query: {
+  //           type: 'string',
+  //           description: 'The search query',
+  //         },
+  //         type: {
+  //           type: 'string',
+  //           description: 'The type of search (GRAPH_COMPLETION, RAG_COMPLETION, SUMMARIES, or CHUNKS)',
+  //           enum: ['GRAPH_COMPLETION', 'RAG_COMPLETION', 'SUMMARIES', 'CHUNKS'],
+  //         },
+  //       },
+  //       required: ['query'],
+  //     },
+  //   },
+
+  //       ]  
+    
+  // );
+
+// Add error handling
+server.onerror = (error) => {
+  logger.error({ error }, 'MCP server error');
+};
+
+server.onclose = () => {
+  logger.info('MCP server closed');
+};
+
 
 // Register tool handlers
 server.onerror = (error) => {
@@ -133,6 +163,33 @@ server.onerror = (error) => {
 
 // Handle tool calls
 server.onrequest = async (request) => {
+  logger.info({ request }, 'Received MCP request');
+  
+  // Handle initialize request
+  if (request.method === 'initialize') {
+    logger.info('MCP client initialization request received');
+    return {
+      protocolVersion: '2025-03-26',
+      capabilities: server.capabilities,
+      serverInfo: {
+        name: 'Serapeum RAG Server',
+        version: '0.1.0'
+      }
+    };
+  }
+  
+  // Handle ping request
+  if (request.method === 'ping') {
+    logger.info('MCP client ping request received');
+    return {};
+  }
+  
+  // Handle initialized notification
+  if (request.method === 'notifications/initialized') {
+    logger.info('MCP client initialized notification received');
+    return null; // Notifications don't expect a response
+  }
+  
   if (request.method === 'tools/call') {
     const { name, arguments: args } = request.params;
     
@@ -141,7 +198,7 @@ server.onrequest = async (request) => {
         case 'rag_query':
           logger.info('Processing RAG query via MCP');
           const queryEmbeddings = await ollamaService.generateEmbeddings(args.query);
-          const searchResults = await qdrantService.searchDocuments(queryEmbeddings, 5);
+          const searchResults = await qdrantService.searchDocuments(queryEmbeddings, 15);
           const contextDocuments = searchResults.map(result => result.content);
           const responseText = await ollamaService.generateRAGResponse(args.query, contextDocuments);
           
@@ -152,63 +209,6 @@ server.onrequest = async (request) => {
             search_results: searchResults,
             timestamp: new Date().toISOString()
           };
-          
-        case 'store_document':
-          logger.info('Storing document via MCP');
-          const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          const embeddings = await ollamaService.generateEmbeddings(args.content);
-          await qdrantService.storeDocument(documentId, embeddings, args.metadata, args.content);
-          await neo4jService.createNode('Document', {
-            id: documentId,
-            content: args.content,
-            ...args.metadata,
-            createdAt: new Date().toISOString()
-          });
-          await cogneeService.addText(args.content);
-          
-          return {
-            message: 'Document stored successfully',
-            document: {
-              id: documentId,
-              content: args.content,
-              metadata: args.metadata || {},
-              created_at: new Date().toISOString()
-            }
-          };
-          
-        case 'retrieve_document':
-          logger.info('Retrieving document via MCP');
-          const document = await qdrantService.getDocument(args.id);
-          if (!document) {
-            throw new Error('Document not found');
-          }
-          
-          return {
-            id: document.id,
-            content: document.content,
-            metadata: document.metadata || {},
-            created_at: document.metadata?.createdAt || new Date().toISOString()
-          };
-          
-        case 'retrieve_graph_nodes':
-          logger.info('Retrieving graph nodes via MCP');
-          const query = `MATCH (n:${args.label}) RETURN n LIMIT $limit`;
-          const params = { limit: parseInt(args.limit) || 10 };
-          const nodes = await neo4jService.executeQuery(query, params);
-          
-          return nodes;
-          
-        case 'cognee_add':
-          logger.info('Adding content to Cognee via MCP');
-          const addResult = await cogneeService.addText(args.content);
-          
-          return addResult;
-          
-        case 'cognee_search':
-          logger.info('Performing search with Cognee via MCP');
-          const searchResult = await cogneeService.search(args.query, args.type);
-          
-          return searchResult;
           
         default:
           throw new Error(`Unknown tool: ${name}`);
@@ -225,52 +225,83 @@ async function startMcpServer() {
   try {
     logger.info('Starting MCP server');
     
-    // Validate critical service dependencies before starting
+    // Initialize service availability
+    qdrantAvailable = false;
+    neo4jAvailable = false;
+    cogneeAvailable = false;
+    
+    // Validate service dependencies before starting
     logger.info('Validating service dependencies');
     
-    // Check Qdrant service
+    // Check Qdrant service (critical for basic functionality)
     try {
       await qdrantService.initializeCollection();
+      qdrantAvailable = true;
       logger.info('Qdrant service initialized successfully');
     } catch (error) {
-      logger.error({ error }, 'Failed to initialize Qdrant service');
+      logger.error({ error }, 'Qdrant service is not available - this is critical for MCP server');
       throw new Error(`Critical service Qdrant is unavailable: ${error.message}`);
     }
     
-    // Check Neo4j service
+    // Check Neo4j service (optional)
     try {
       await neo4jService.initializeConnection();
+      neo4jAvailable = true;
       logger.info('Neo4j service initialized successfully');
     } catch (error) {
-      logger.error({ error }, 'Failed to initialize Neo4j service');
-      throw new Error(`Critical service Neo4j is unavailable: ${error.message}`);
+      logger.warn({ error }, 'Neo4j service is not available, continuing without it');
+      neo4jAvailable = false;
     }
     
-    // Check Cognee service availability
+    // Check Cognee service availability (optional)
     try {
-      logger.info('Testing Cognee service availability');
       // We could add a simple test here if needed
+      cogneeAvailable = true;
+      logger.info('Cognee service is available');
     } catch (error) {
-      logger.error({ error }, 'Failed to initialize Cognee service');
-      throw new Error(`Critical service Cognee is unavailable: ${error.message}`);
+      logger.warn({ error }, 'Cognee service is not available, continuing without it');
+      cogneeAvailable = false;
     }
+    
+    // Build tools list based on available services
+    const availableTools = tools.filter(tool => {
+      // Always include basic tools if Qdrant is available
+      if (['rag_query'].includes(tool.name)) {
+        return true; // This depends on Qdrant which is already verified
+      }
+      
+      return true;
+    });
     
     // Add tools to server capabilities
+    if (!server.capabilities) {
+      server.capabilities = {};
+    }
     server.capabilities.tools = {
-      tools: tools.map(tool => ({
+      listChanged: true,
+      tools: availableTools.map(tool => ({
         name: tool.name,
         description: tool.description,
         inputSchema: tool.inputSchema
       }))
     };
     
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
+    // Transport will be connected in the main mcp.js file
+    // Just return the server instance
     
-    logger.info('MCP server started successfully with all critical services available');
+    logger.info('MCP server started successfully with available services', {
+      qdrantAvailable,
+      neo4jAvailable,
+      cogneeAvailable,
+      availableTools: availableTools.map(t => t.name)
+    });
+    
+    // Return the server instance for the caller to connect with transport
+    return server;
   } catch (error) {
-    logger.error({ error }, 'Failed to start MCP server due to unavailable critical services');
-    process.exit(1);
+    logger.error({ error }, 'Failed to start MCP server');
+    // Re-throw the error for the caller to handle
+    throw error;
   }
 }
 

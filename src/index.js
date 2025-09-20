@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const pino = require('pino');
+const path = require('path');
 require('dotenv').config();
 
 // Initialize logger
@@ -23,6 +24,38 @@ const ollamaService = require('./services/ollamaService');
 const qdrantService = require('./services/qdrantService');
 const neo4jService = require('./services/neo4jService');
 const cogneeService = require('./services/cogneeService');
+const sqlService = require('./services/sqlService');
+const lmstudioService = require('./services/lmstudioService');
+const pdfParseService = require('./services/pdfParseService');
+
+// Service availability flags
+let lmstudioAvailable = false;
+
+// Helper function to generate embeddings with fallback
+const generateEmbeddings = async (text) => {
+  if (lmstudioAvailable) {
+    try {
+      return await lmstudioService.generateEmbeddings(text);
+    } catch (error) {
+      logger.warn('LM Studio failed, falling back to Ollama');
+      lmstudioAvailable = false;
+    }
+  }
+  return await ollamaService.generateEmbeddings(text);
+};
+
+// Helper function to generate RAG response with fallback
+const generateRAGResponse = async (query, context) => {
+  if (lmstudioAvailable) {
+    try {
+      return await lmstudioService.generateRAGResponse(query, context);
+    } catch (error) {
+      logger.warn('LM Studio failed, falling back to Ollama');
+      lmstudioAvailable = false;
+    }
+  }
+  return await ollamaService.generateRAGResponse(query, context);
+};
 
 // Initialize services
 const initializeServices = async () => {
@@ -35,6 +68,22 @@ const initializeServices = async () => {
   try {
     await qdrantService.initializeCollection();
     await neo4jService.initializeConnection();
+    await sqlService.initializeConnection();
+    await sqlService.createTables();
+    
+    // Try to initialize LM Studio service, but don't fail if it's not available
+    try {
+      await lmstudioService.generateResponse('test');
+      lmstudioAvailable = true;
+      logger.info('LM Studio service initialized successfully');
+    } catch (error) {
+      logger.warn('LM Studio service not available, falling back to Ollama');
+    }
+    
+    // Process PDFs in the pdf-parse-input directory
+    const pdfInputDir = path.join(__dirname, '..', 'pdf-parse-input');
+    await pdfParseService.parseAndProcessPDFs(pdfInputDir);
+    
     logger.info('Services initialized successfully');
   } catch (error) {
     logger.error({ error }, 'Failed to initialize services');
@@ -62,7 +111,7 @@ app.post('/api/v1/query', async (req, res) => {
     logger.info('Processing RAG query');
     
     // Generate embeddings for the query
-    const queryEmbeddings = await ollamaService.generateEmbeddings(query);
+    const queryEmbeddings = await generateEmbeddings(query);
     
     // Search for similar documents in Qdrant
     const searchResults = await qdrantService.searchDocuments(queryEmbeddings, 5);
@@ -70,8 +119,8 @@ app.post('/api/v1/query', async (req, res) => {
     // Extract content from search results
     const contextDocuments = searchResults.map(result => result.content);
     
-    // Generate response using Ollama with context
-    const responseText = await ollamaService.generateRAGResponse(query, contextDocuments);
+    // Generate response using language model with context
+    const responseText = await generateRAGResponse(query, contextDocuments);
     
     const response = {
       query: query,
@@ -105,7 +154,7 @@ app.post('/api/v1/documents', async (req, res) => {
     const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     // Generate embeddings for the document content
-    const embeddings = await ollamaService.generateEmbeddings(content);
+    const embeddings = await generateEmbeddings(content);
     
     // Store the document and its embeddings in Qdrant
     await qdrantService.storeDocument(documentId, embeddings, metadata, content);
@@ -120,6 +169,12 @@ app.post('/api/v1/documents', async (req, res) => {
     
     // Add document to Cognee for knowledge graph processing
     await cogneeService.addText(content);
+    
+    // Store document name and author in SQL database
+    if (metadata && (metadata.title || metadata.name) && metadata.author) {
+      const documentName = metadata.title || metadata.name;
+      await sqlService.storeDocument(documentName, metadata.author);
+    }
     
     const document = {
       id: documentId,
@@ -250,16 +305,18 @@ initializeServices().then(() => {
   });
 });
 
-// Close Neo4j connection on process termination
+// Close database connections on process termination
 process.on('SIGINT', async () => {
   logger.info('Shutting down server');
   await neo4jService.closeConnection();
+  await sqlService.closeConnection();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   logger.info('Shutting down server');
   await neo4jService.closeConnection();
+  await sqlService.closeConnection();
   process.exit(0);
 });
 

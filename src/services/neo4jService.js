@@ -7,15 +7,7 @@ class Neo4jService {
     this.uri = process.env.NEO4J_URI || 'bolt://localhost:7687';
     this.username = process.env.NEO4J_USERNAME || 'neo4j';
     this.password = process.env.NEO4J_PASSWORD || 'password';
-    
-    // Initialize Neo4j driver
-    this.driver = neo4j.driver(
-      this.uri,
-      neo4j.auth.basic(this.username, this.password),
-      {
-        disableLosslessIntegers: true
-      }
-    );
+    this.driver = null;
   }
 
   /**
@@ -25,10 +17,25 @@ class Neo4jService {
   async initializeConnection() {
     try {
       logger.info('Initializing Neo4j connection');
+      
+      // Initialize Neo4j driver only when needed
+      this.driver = neo4j.driver(
+        this.uri,
+        neo4j.auth.basic(this.username, this.password),
+        {
+          disableLosslessIntegers: true
+        }
+      );
+      
       await this.driver.verifyConnectivity();
       logger.info('Neo4j connection established successfully');
     } catch (error) {
       logger.error({ error }, 'Error initializing Neo4j connection');
+      // Clean up the driver if it was created
+      if (this.driver) {
+        await this.driver.close().catch(() => {}); // Ignore errors during cleanup
+        this.driver = null;
+      }
       throw new Error(`Failed to initialize Neo4j connection: ${error.message}`);
     }
   }
@@ -39,9 +46,12 @@ class Neo4jService {
    */
   async closeConnection() {
     try {
-      logger.info('Closing Neo4j connection');
-      await this.driver.close();
-      logger.info('Neo4j connection closed successfully');
+      if (this.driver) {
+        logger.info('Closing Neo4j connection');
+        await this.driver.close();
+        this.driver = null;
+        logger.info('Neo4j connection closed successfully');
+      }
     } catch (error) {
       logger.error({ error }, 'Error closing Neo4j connection');
       throw new Error(`Failed to close Neo4j connection: ${error.message}`);
@@ -55,6 +65,10 @@ class Neo4jService {
    * @returns {Promise<Array>} - Query results
    */
   async executeQuery(query, params = {}) {
+    if (!this.driver) {
+      throw new Error('Neo4j connection not initialized');
+    }
+    
     const session = this.driver.session();
     try {
       logger.info('Executing Cypher query');
@@ -77,6 +91,10 @@ class Neo4jService {
    * @returns {Promise<Object>} - Created node
    */
   async createNode(label, properties) {
+    if (!this.driver) {
+      throw new Error('Neo4j connection not initialized');
+    }
+    
     const query = `CREATE (n:${label} $properties) RETURN n`;
     const params = { properties };
     const result = await this.executeQuery(query, params);
@@ -101,6 +119,10 @@ class Neo4jService {
     relationshipType,
     properties = {}
   ) {
+    if (!this.driver) {
+      throw new Error('Neo4j connection not initialized');
+    }
+    
     const query = `
       MATCH (a:${startNodeLabel} $startProps)
       MATCH (b:${endNodeLabel} $endProps)
@@ -116,5 +138,7 @@ class Neo4jService {
     return result[0].r;
   }
 }
+
+module.exports = new Neo4jService();
 
 module.exports = new Neo4jService();

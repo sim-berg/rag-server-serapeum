@@ -33,9 +33,7 @@ async def add_text(text):
     # Add the text data to Cognee
     await add(text)
     
-    # Define a custom graph model
-    class FieldType(DataPoint):
-        name: str = "Field"
+    # Define a custom graph model  d"
 
     class Field(DataPoint):
         name: str

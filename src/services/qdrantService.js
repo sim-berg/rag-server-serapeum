@@ -34,7 +34,7 @@ class QdrantService {
         
         await this.client.createCollection(this.collectionName, {
           vectors: {
-            size: 4096, // Default dimension, adjust as needed
+            size: 1024, // Default dimension, adjust as needed
             distance: 'Cosine'
           }
         });

@@ -2,3 +2,5 @@
 node_modules
 nixos
 .env
+pdf-parse-input/
+.db
